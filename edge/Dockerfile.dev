@@ -1,0 +1,24 @@
+# Development Dockerfile (x86_64 — no TensorRT, uses PyTorch CPU for debugging)
+FROM python:3.12-slim AS base
+
+ENV PYTHONUNBUFFERED=1
+ENV PYTHONDONTWRITEBYTECODE=1
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libasound2-dev \
+    libsndfile1 \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+# Copy shared library
+COPY libs/seld-common /app/libs/seld-common
+
+# Copy edge agent
+COPY edge/pyproject.toml /app/
+COPY edge/src /app/src
+
+# Install with dev dependencies (includes PyTorch for CPU debugging)
+RUN pip install --no-cache-dir ".[dev]" --extra-index-url https://download.pytorch.org/whl/cpu
+
+CMD ["python", "-m", "edge_agent.main"]

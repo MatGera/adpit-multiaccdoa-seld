@@ -1,0 +1,74 @@
+name: CI — Frontend
+
+on:
+  push:
+    branches: [main, develop]
+    paths:
+      - "frontend/**"
+      - "packages/**"
+      - ".github/workflows/ci-frontend.yml"
+  pull_request:
+    paths:
+      - "frontend/**"
+      - "packages/**"
+
+jobs:
+  lint-build-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - name: Setup Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Lint
+        run: pnpm --filter frontend lint
+
+      - name: Type check
+        run: pnpm --filter frontend typecheck
+
+      - name: Build
+        run: pnpm --filter frontend build
+
+      - name: Run unit tests
+        run: pnpm --filter frontend test
+
+  e2e-tests:
+    runs-on: ubuntu-latest
+    needs: lint-build-test
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - name: Setup Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Playwright browsers
+        run: pnpm --filter frontend exec playwright install --with-deps chromium
+
+      - name: Build frontend
+        run: pnpm --filter frontend build
+
+      - name: Run Playwright tests
+        run: pnpm --filter frontend exec playwright test

@@ -1,0 +1,21 @@
+{
+  "name": "seld-infra",
+  "version": "0.1.0",
+  "private": true,
+  "description": "SELD Digital Twin — Pulumi Infrastructure as Code",
+  "scripts": {
+    "preview": "pulumi preview",
+    "up": "pulumi up --yes",
+    "destroy": "pulumi destroy --yes"
+  },
+  "dependencies": {
+    "@pulumi/pulumi": "^3.140.0",
+    "@pulumi/kubernetes": "^4.18.0",
+    "@pulumi/docker": "^4.5.0",
+    "@pulumi/postgresql": "^3.13.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.0",
+    "@types/node": "^22.10.0"
+  }
+}

@@ -1,0 +1,83 @@
+syntax = "proto3";
+
+package seld.semantic;
+
+import "google/protobuf/timestamp.proto";
+
+// Retrieved document chunk
+message DocumentChunk {
+  string content = 1;
+  string source = 2;
+  int32 page = 3;
+  double score = 4;
+}
+
+// Asset metadata
+message AssetMetadata {
+  string asset_id = 1;
+  string asset_name = 2;
+  string asset_type = 3;
+  string model = 4;
+  string manufacturer = 5;
+  string install_date = 6;
+  string last_maintenance = 7;
+}
+
+// Semantic query request
+message SemanticQueryRequest {
+  string device_id = 1;
+  string class_name = 2;
+  double confidence = 3;
+  double vector_x = 4;
+  double vector_y = 5;
+  double vector_z = 6;
+  string bim_model_id = 7;
+  string additional_context = 8;
+}
+
+// Citation in LLM output
+message Citation {
+  string source = 1;
+  int32 page = 2;
+  string quote = 3;
+}
+
+// LLM response
+message LLMResponse {
+  string response_text = 1;
+  repeated Citation citations = 2;
+  double confidence = 3;
+  string asset_id = 4;
+  repeated string recommended_actions = 5;
+  string severity = 6;  // info, warning, critical, emergency
+}
+
+// Streaming LLM response chunk
+message LLMStreamChunk {
+  string token = 1;
+  bool is_final = 2;
+  LLMResponse final_response = 3;  // populated only when is_final=true
+}
+
+// Document ingestion request
+message IngestDocumentRequest {
+  string file_name = 1;
+  string file_type = 2;           // pdf, docx, txt
+  bytes content = 3;
+  repeated string asset_tags = 4;
+  map<string, string> metadata = 5;
+}
+
+// Document ingestion response
+message IngestDocumentResponse {
+  string document_id = 1;
+  int32 num_chunks = 2;
+  string status = 3;
+}
+
+// Semantic layer service
+service SemanticLayerService {
+  rpc Ask(SemanticQueryRequest) returns (LLMResponse);
+  rpc AskStream(SemanticQueryRequest) returns (stream LLMStreamChunk);
+  rpc IngestDocument(IngestDocumentRequest) returns (IngestDocumentResponse);
+}

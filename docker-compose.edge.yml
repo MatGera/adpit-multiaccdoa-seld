@@ -1,0 +1,39 @@
+version: "3.9"
+
+# Edge simulation: NanoMQ broker + mock sensor + edge agent (x86 dev mode)
+services:
+
+  # --- NanoMQ Edge MQTT Broker ---
+  nanomq:
+    image: emqx/nanomq:0.21-full
+    container_name: seld-nanomq
+    volumes:
+      - ./edge/nanomq.conf:/etc/nanomq.conf
+    ports:
+      - "1884:1883"       # MQTT (offset to avoid clash with cloud EMQX)
+      - "8884:8083"       # WebSocket
+    command: ["nanomq", "start", "--conf", "/etc/nanomq.conf"]
+
+  # --- Edge Agent (dev mode, x86) ---
+  edge-agent:
+    build:
+      context: .
+      dockerfile: edge/Dockerfile.dev
+    container_name: seld-edge-agent
+    environment:
+      DEVICE_ID: ARRAY_DEV_01
+      MQTT_BROKER_URL: mqtt://nanomq:1883
+      AUDIO_DEVICE: mock
+      SAMPLE_RATE: 24000
+      FRAME_LENGTH_MS: 100
+      NUM_CHANNELS: 4
+      CONFIDENCE_THRESHOLD: 0.3
+      CLOUD_API_URL: http://host.docker.internal:8000
+      MOCK_AUDIO: "true"
+    depends_on:
+      - nanomq
+    volumes:
+      - ./edge/src:/app/src:ro
+      - ./models:/app/models:ro
+
+volumes: {}

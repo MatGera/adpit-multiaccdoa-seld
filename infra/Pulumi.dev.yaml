@@ -1,0 +1,5 @@
+config:
+  seld-digital-twin:environment: dev
+  seld-digital-twin:k8sNamespace: seld-dev
+  seld-digital-twin:dbInstanceClass: db.t4g.medium
+  seld-digital-twin:replicaCount: 1

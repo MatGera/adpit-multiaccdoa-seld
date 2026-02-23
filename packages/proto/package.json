@@ -1,0 +1,10 @@
+{
+  "name": "@seld/proto",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Protobuf/gRPC service definitions for SELD digital twin",
+  "scripts": {
+    "build": "echo 'Use scripts/generate-protos.sh to compile proto files'",
+    "clean": "rm -rf generated/"
+  }
+}

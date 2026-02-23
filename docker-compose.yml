@@ -1,0 +1,226 @@
+version: "3.9"
+
+# Local development environment: all cloud services + infrastructure
+services:
+
+  # --- PostgreSQL 16 with pgvector + TimescaleDB ---
+  postgres:
+    image: timescale/timescaledb:latest-pg16
+    container_name: seld-postgres
+    environment:
+      POSTGRES_USER: seld
+      POSTGRES_PASSWORD: seld_dev_password
+      POSTGRES_DB: seld_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./migrations/init-extensions.sql:/docker-entrypoint-initdb.d/01-extensions.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U seld"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # --- Redis (caching, state cache for vision) ---
+  redis:
+    image: redis:7-alpine
+    container_name: seld-redis
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  # --- EMQX MQTT Broker (cloud hub) ---
+  emqx:
+    image: emqx/emqx:5.8
+    container_name: seld-emqx
+    environment:
+      EMQX_NAME: seld-emqx
+      EMQX_HOST: 127.0.0.1
+      EMQX_LOADED_PLUGINS: "emqx_management,emqx_auth_mnesia,emqx_rule_engine"
+    ports:
+      - "1883:1883"       # MQTT
+      - "8083:8083"       # MQTT over WebSocket
+      - "8084:8084"       # MQTT over WSS
+      - "8883:8883"       # MQTTS
+      - "18083:18083"     # Dashboard
+    volumes:
+      - emqx_data:/opt/emqx/data
+    healthcheck:
+      test: ["CMD", "emqx", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # --- Apache Kafka (Redpanda — lightweight alternative) ---
+  redpanda:
+    image: redpandadata/redpanda:v24.3.1
+    container_name: seld-redpanda
+    command:
+      - redpanda
+      - start
+      - --smp=1
+      - --memory=512M
+      - --overprovisioned
+      - --kafka-addr=internal://0.0.0.0:9092,external://0.0.0.0:19092
+      - --advertise-kafka-addr=internal://redpanda:9092,external://localhost:19092
+      - --pandaproxy-addr=internal://0.0.0.0:8082,external://0.0.0.0:18082
+      - --advertise-pandaproxy-addr=internal://redpanda:8082,external://localhost:18082
+    ports:
+      - "19092:19092"     # Kafka API (external)
+      - "18082:18082"     # Pandaproxy (external)
+    volumes:
+      - redpanda_data:/var/lib/redpanda/data
+
+  # --- Redpanda Console (Kafka UI) ---
+  redpanda-console:
+    image: redpandadata/console:v2.7.2
+    container_name: seld-redpanda-console
+    environment:
+      CONFIG_FILEPATH: /tmp/config.yml
+      CONSOLE_CONFIG_FILE: |
+        kafka:
+          brokers: ["redpanda:9092"]
+    ports:
+      - "8180:8080"
+    depends_on:
+      - redpanda
+
+  # --- API Gateway ---
+  api-gateway:
+    build:
+      context: .
+      dockerfile: cloud/api-gateway/Dockerfile
+    container_name: seld-api-gateway
+    environment:
+      DATABASE_URL: postgresql+asyncpg://seld:seld_dev_password@postgres:5432/seld_db
+      REDIS_URL: redis://redis:6379/0
+      EMQX_HOST: emqx
+      KAFKA_BOOTSTRAP_SERVERS: redpanda:9092
+      SPATIAL_GRPC_HOST: spatial-engine:50051
+      SEMANTIC_GRPC_HOST: semantic-layer:50052
+      DEVICE_GRPC_HOST: device-service:50053
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      emqx:
+        condition: service_healthy
+
+  # --- Ingestion Service ---
+  ingestion-service:
+    build:
+      context: .
+      dockerfile: cloud/ingestion-service/Dockerfile
+    container_name: seld-ingestion
+    environment:
+      DATABASE_URL: postgresql+asyncpg://seld:seld_dev_password@postgres:5432/seld_db
+      KAFKA_BOOTSTRAP_SERVERS: redpanda:9092
+      KAFKA_TOPIC: seld.predictions
+      KAFKA_GROUP_ID: ingestion-service
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redpanda:
+        condition: service_started
+
+  # --- Device Service ---
+  device-service:
+    build:
+      context: .
+      dockerfile: cloud/device-service/Dockerfile
+    container_name: seld-device-service
+    environment:
+      DATABASE_URL: postgresql+asyncpg://seld:seld_dev_password@postgres:5432/seld_db
+      GRPC_PORT: 50053
+    ports:
+      - "50053:50053"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  # --- Spatial Engine ---
+  spatial-engine:
+    build:
+      context: .
+      dockerfile: spatial/Dockerfile
+    container_name: seld-spatial-engine
+    environment:
+      DATABASE_URL: postgresql+asyncpg://seld:seld_dev_password@postgres:5432/seld_db
+      REDIS_URL: redis://redis:6379/1
+      GRPC_PORT: 50051
+      REST_PORT: 8001
+    ports:
+      - "50051:50051"
+      - "8001:8001"
+    volumes:
+      - bim_models:/data/bim
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  # --- Semantic Layer ---
+  semantic-layer:
+    build:
+      context: .
+      dockerfile: semantic/Dockerfile
+    container_name: seld-semantic-layer
+    environment:
+      DATABASE_URL: postgresql+asyncpg://seld:seld_dev_password@postgres:5432/seld_db
+      GRPC_PORT: 50052
+      REST_PORT: 8002
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      EMBEDDING_MODEL: text-embedding-3-large
+      LLM_MODEL: claude-sonnet-4-20250514
+    ports:
+      - "50052:50052"
+      - "8002:8002"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  # --- Vision Fusion ---
+  vision-fusion:
+    build:
+      context: .
+      dockerfile: vision/Dockerfile
+    container_name: seld-vision-fusion
+    environment:
+      DATABASE_URL: postgresql+asyncpg://seld:seld_dev_password@postgres:5432/seld_db
+      REDIS_URL: redis://redis:6379/2
+      REST_PORT: 8003
+    ports:
+      - "8003:8003"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  # --- Frontend ---
+  frontend:
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+    container_name: seld-frontend
+    environment:
+      NEXT_PUBLIC_API_URL: http://localhost:8000
+      NEXT_PUBLIC_WS_URL: ws://localhost:8000
+    ports:
+      - "3000:3000"
+    depends_on:
+      - api-gateway
+
+volumes:
+  postgres_data:
+  emqx_data:
+  redpanda_data:
+  bim_models:

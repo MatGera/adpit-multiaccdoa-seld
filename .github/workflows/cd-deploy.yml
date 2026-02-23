@@ -1,0 +1,83 @@
+name: CD — Deploy
+
+on:
+  push:
+    branches: [main]
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: "Target environment"
+        required: true
+        default: "staging"
+        type: choice
+        options:
+          - staging
+          - production
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_PREFIX: ghcr.io/${{ github.repository }}
+
+jobs:
+  deploy-staging:
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' || (github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'staging')
+    environment: staging
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Helm
+        uses: azure/setup-helm@v4
+        with:
+          version: v3.16.0
+
+      - name: Configure kubectl
+        uses: azure/k8s-set-context@v4
+        with:
+          kubeconfig: ${{ secrets.KUBE_CONFIG_STAGING }}
+
+      - name: Deploy services via Helm
+        run: |
+          SERVICES="api-gateway ingestion-service device-service spatial-engine semantic-layer vision-fusion frontend"
+          for svc in $SERVICES; do
+            helm upgrade --install $svc ./helm/$svc \
+              --namespace seld-staging \
+              --create-namespace \
+              --set image.tag=${{ github.sha }} \
+              --set image.repository=${{ env.IMAGE_PREFIX }}/$svc \
+              -f ./helm/$svc/values.yaml \
+              --wait --timeout 5m
+          done
+
+  deploy-production:
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'production')
+    environment: production
+    needs: deploy-staging
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Helm
+        uses: azure/setup-helm@v4
+        with:
+          version: v3.16.0
+
+      - name: Configure kubectl
+        uses: azure/k8s-set-context@v4
+        with:
+          kubeconfig: ${{ secrets.KUBE_CONFIG_PRODUCTION }}
+
+      - name: Deploy services via Helm
+        run: |
+          SERVICES="api-gateway ingestion-service device-service spatial-engine semantic-layer vision-fusion frontend"
+          for svc in $SERVICES; do
+            helm upgrade --install $svc ./helm/$svc \
+              --namespace seld-production \
+              --create-namespace \
+              --set image.tag=${{ github.ref_name }} \
+              --set image.repository=${{ env.IMAGE_PREFIX }}/$svc \
+              -f ./helm/$svc/values.yaml \
+              --wait --timeout 5m
+          done

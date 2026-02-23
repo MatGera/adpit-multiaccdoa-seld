@@ -1,0 +1,34 @@
+[project]
+name = "seld-vision-fusion"
+version = "0.1.0"
+description = "SELD Digital Twin — Vision Fusion: CCTV tracking + mobile mapping"
+requires-python = ">=3.12"
+dependencies = [
+    "ultralytics>=8.3.0",
+    "opencv-python-headless>=4.10.0",
+    "numpy>=2.1.0",
+    "scipy>=1.14.0",
+    "redis>=5.2.0",
+    "pydantic>=2.10.0",
+    "pydantic-settings>=2.7.0",
+    "structlog>=24.4.0",
+    "httpx>=0.28.0",
+    "seld-common",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.backends"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/vision_fusion"]
+
+[project.optional-dependencies]
+mobile-mapping = [
+    "open3d>=0.18.0",
+    "laspy>=2.5.0",
+]
+dev = ["pytest>=8.3.0", "pytest-asyncio>=0.25.0", "ruff>=0.8.0"]
+
+[tool.uv.sources]
+seld-common = { path = "../libs/seld-common", editable = true }

@@ -1,0 +1,32 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 222.2 84% 4.9%;
+    --foreground: 210 40% 98%;
+  }
+}
+
+@layer components {
+  .severity-badge {
+    @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium;
+  }
+
+  .severity-info {
+    @apply bg-blue-500/20 text-blue-300;
+  }
+
+  .severity-warning {
+    @apply bg-amber-500/20 text-amber-300;
+  }
+
+  .severity-critical {
+    @apply bg-red-500/20 text-red-300;
+  }
+
+  .severity-emergency {
+    @apply bg-red-700/30 text-red-200 animate-pulse-slow;
+  }
+}

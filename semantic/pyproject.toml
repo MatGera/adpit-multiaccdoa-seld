@@ -1,0 +1,38 @@
+[project]
+name = "seld-semantic-layer"
+version = "0.1.0"
+description = "SELD Digital Twin — Semantic Layer: RAG + prescriptive LLM"
+requires-python = ">=3.12"
+dependencies = [
+    "grpcio>=1.68.0",
+    "grpcio-tools>=1.68.0",
+    "protobuf>=5.29.0",
+    "sqlalchemy[asyncio]>=2.0.36",
+    "asyncpg>=0.30.0",
+    "pgvector>=0.3.6",
+    "pydantic>=2.10.0",
+    "pydantic-settings>=2.7.0",
+    "structlog>=24.4.0",
+    "httpx>=0.28.0",
+    "anthropic>=0.40.0",
+    "tiktoken>=0.8.0",
+    "sentence-transformers>=3.3.0",
+    "langchain-text-splitters>=0.3.0",
+    "pypdf>=5.1.0",
+    "python-docx>=1.1.0",
+    "jinja2>=3.1.0",
+    "seld-common",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.backends"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/semantic_layer"]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.3.0", "pytest-asyncio>=0.25.0", "ruff>=0.8.0"]
+
+[tool.uv.sources]
+seld-common = { path = "../libs/seld-common", editable = true }

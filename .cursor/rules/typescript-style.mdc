@@ -1,0 +1,17 @@
+---
+globs: "*.ts,*.tsx"
+---
+# TypeScript Style Guide
+
+- TypeScript 5.x strict mode enabled.
+- Use `zod` for runtime schema validation (shared-types package).
+- React 19 with Server Components (Next.js 15 App Router).
+- Prefer `function` declarations for React components.
+- Use `Tailwind CSS` for styling — no CSS modules or styled-components.
+- State management: `zustand` for client state, `@tanstack/react-query` for server state.
+- Real-time: WebSocket via native API or Socket.IO client.
+- 3D rendering: Three.js r170+ with `@react-three/fiber` where applicable.
+- All API calls go through `src/lib/api.ts` fetch wrapper.
+- Use `pnpm` as package manager. Never use `npm` or `yarn`.
+- Prefer named exports over default exports.
+- File naming: `kebab-case` for files, `PascalCase` for components.

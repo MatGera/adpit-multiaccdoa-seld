@@ -1,0 +1,76 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+*.egg
+dist/
+build/
+.eggs/
+*.whl
+.venv/
+venv/
+env/
+
+# Node
+node_modules/
+.next/
+.turbo/
+*.tsbuildinfo
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# TensorRT / ML
+*.engine
+*.onnx
+*.plan
+*.trt
+*.pt
+*.pth
+*.ckpt
+wandb/
+mlruns/
+
+# Docker
+.docker/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Coverage
+htmlcov/
+.coverage
+.coverage.*
+coverage.xml
+
+# Alembic
+migrations/versions/__pycache__/
+
+# Helm
+helm/*/charts/
+
+# Pulumi
+infra/.pulumi/
+infra/Pulumi.*.yaml.bak
+
+# Data
+data/
+datasets/
+models/
+*.ifc
+*.glb
+*.gltf

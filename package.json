@@ -1,0 +1,30 @@
+{
+  "name": "adpit-multiaccdoa-seld",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Semantic Acoustic Digital Twin — Industrial CPS for condition monitoring and infrastructure security",
+  "license": "Apache-2.0",
+  "engines": {
+    "node": ">=22.0.0",
+    "pnpm": ">=9.0.0"
+  },
+  "packageManager": "pnpm@9.15.0",
+  "scripts": {
+    "build": "turbo run build",
+    "dev": "turbo run dev",
+    "lint": "turbo run lint",
+    "test": "turbo run test",
+    "typecheck": "turbo run typecheck",
+    "clean": "turbo run clean",
+    "format": "prettier --write \"**/*.{ts,tsx,js,json,md,yaml}\"",
+    "generate:protos": "bash scripts/generate-protos.sh",
+    "docker:up": "docker compose up -d",
+    "docker:down": "docker compose down",
+    "docker:edge": "docker compose -f docker-compose.edge.yml up -d"
+  },
+  "devDependencies": {
+    "prettier": "^3.4.0",
+    "turbo": "^2.3.0",
+    "typescript": "^5.7.0"
+  }
+}

@@ -1,0 +1,106 @@
+syntax = "proto3";
+
+package seld.spatial;
+
+// 3D point
+message Point3D {
+  double x = 1;
+  double y = 2;
+  double z = 3;
+}
+
+// 4x4 homogeneous transformation matrix (row-major, 16 elements)
+message TransformMatrix {
+  repeated double elements = 1;  // exactly 16 values
+}
+
+// Ray definition
+message Ray {
+  Point3D origin = 1;
+  Point3D direction = 2;
+}
+
+// Spatial hit — a ray-BIM intersection result
+message SpatialHit {
+  string asset_id = 1;
+  string asset_name = 2;
+  string ifc_type = 3;
+  Point3D hit_point = 4;
+  double distance = 5;
+  double confidence = 6;
+}
+
+// Raycast request
+message RaycastRequest {
+  string device_id = 1;
+  Point3D direction = 2;          // DOA in local device frame
+  string bim_model_id = 3;
+  double max_distance = 4;
+}
+
+// Raycast response
+message RaycastResponse {
+  Ray world_ray = 1;              // transformed ray in BIM world frame
+  repeated SpatialHit hits = 2;
+}
+
+// Observation from a single sensor
+message SensorObservation {
+  string device_id = 1;
+  Point3D direction = 2;
+  double confidence = 3;
+}
+
+// Triangulation request (multi-sensor)
+message TriangulationRequest {
+  repeated SensorObservation observations = 1;
+  string bim_model_id = 2;
+}
+
+// Triangulation result
+message TriangulationResult {
+  Point3D estimated_point = 1;
+  double residual_error = 2;
+  SpatialHit nearest_asset = 3;
+  repeated string contributing_devices = 4;
+}
+
+// Batch spatial query
+message SpatialQueryRequest {
+  message PredictionInput {
+    string device_id = 1;
+    string class_name = 2;
+    double confidence = 3;
+    Point3D direction = 4;
+  }
+  repeated PredictionInput predictions = 1;
+  string bim_model_id = 2;
+  int32 top_k = 3;
+}
+
+// Spatial query response
+message SpatialQueryResponse {
+  repeated SpatialHit ranked_hits = 1;
+  TriangulationResult triangulation = 2;
+}
+
+// Calibration matrix management
+message SetCalibrationRequest {
+  string device_id = 1;
+  string bim_model_id = 2;
+  TransformMatrix matrix = 3;
+}
+
+message GetCalibrationRequest {
+  string device_id = 1;
+  string bim_model_id = 2;
+}
+
+// Spatial engine service
+service SpatialEngineService {
+  rpc Raycast(RaycastRequest) returns (RaycastResponse);
+  rpc Triangulate(TriangulationRequest) returns (TriangulationResult);
+  rpc SpatialQuery(SpatialQueryRequest) returns (SpatialQueryResponse);
+  rpc SetCalibration(SetCalibrationRequest) returns (TransformMatrix);
+  rpc GetCalibration(GetCalibrationRequest) returns (TransformMatrix);
+}

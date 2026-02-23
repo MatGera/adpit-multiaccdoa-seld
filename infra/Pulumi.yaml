@@ -1,0 +1,6 @@
+name: seld-digital-twin
+runtime:
+  name: nodejs
+  options:
+    typescript: true
+description: Semantic Acoustic Digital Twin infrastructure

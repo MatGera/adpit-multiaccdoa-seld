@@ -1,0 +1,56 @@
+[project]
+name = "adpit-multiaccdoa-seld"
+version = "0.1.0"
+description = "Semantic Acoustic Digital Twin — Industrial CPS for condition monitoring"
+license = {text = "Apache-2.0"}
+requires-python = ">=3.12"
+readme = "README.md"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.backends"
+
+[tool.uv.workspace]
+members = [
+    "libs/seld-common",
+    "edge",
+    "training",
+    "cloud/api-gateway",
+    "cloud/ingestion-service",
+    "cloud/device-service",
+    "spatial",
+    "semantic",
+    "vision",
+]
+
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "N", "UP", "B", "A", "SIM", "TCH"]
+ignore = ["E501"]
+
+[tool.ruff.lint.isort]
+known-first-party = [
+    "seld_common",
+    "edge_agent",
+    "seld_training",
+    "api_gateway",
+    "ingestion",
+    "device_service",
+    "spatial_engine",
+    "semantic_layer",
+    "vision_fusion",
+]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+filterwarnings = ["ignore::DeprecationWarning"]
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+warn_return_any = true
+warn_unused_configs = true

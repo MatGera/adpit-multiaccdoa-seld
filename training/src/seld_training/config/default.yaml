@@ -1,0 +1,47 @@
+model:
+  backbone: resnet18
+  conformer_layers: 8
+  conformer_d_model: 512
+  conformer_heads: 8
+  conformer_conv_kernel: 51
+  se_block: true
+  num_classes: 13
+  num_tracks: 3
+
+training:
+  batch_size: 32
+  learning_rate: 0.001
+  weight_decay: 0.0001
+  max_epochs: 200
+  scheduler: cosine_annealing
+  warmup_epochs: 5
+  adpit_lambda: 0.1
+  gradient_clip_val: 1.0
+  accumulate_grad_batches: 1
+
+data:
+  dataset: starss23
+  data_dir: ./data/starss23
+  sample_rate: 24000
+  hop_length: 240
+  n_mels: 128
+  n_fft: 512
+  frame_length_s: 1.0
+  num_workers: 8
+  augmentation:
+    acs: true
+    mcs: true
+    tdm: true
+    tfm: true
+    tfm_max_mask_freq: 16
+    tfm_max_mask_time: 25
+
+export:
+  onnx_opset: 17
+  tensorrt_precision: fp16
+  int8_calibration_size: 500
+
+wandb:
+  project: seld-digital-twin
+  entity: null
+  log_model: true

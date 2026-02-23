@@ -1,0 +1,126 @@
+syntax = "proto3";
+
+package seld.device;
+
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/empty.proto";
+
+// Device hardware type
+enum HardwareType {
+  HARDWARE_TYPE_UNSPECIFIED = 0;
+  INDUSTRIAL_CAPACITIVE = 1;
+  INFRASTRUCTURE_PIEZOELECTRIC = 2;
+}
+
+// Device status
+enum DeviceStatus {
+  DEVICE_STATUS_UNSPECIFIED = 0;
+  ONLINE = 1;
+  OFFLINE = 2;
+  DEGRADED = 3;
+  MAINTENANCE = 4;
+  PROVISIONING = 5;
+}
+
+// 3D coordinates
+message Coordinates {
+  double x = 1;
+  double y = 2;
+  double z = 3;
+}
+
+// Device location
+message Location {
+  string building = 1;
+  string floor = 2;
+  string zone = 3;
+  Coordinates coordinates = 4;
+}
+
+// Device configuration
+message DeviceConfig {
+  string device_id = 1;
+  string name = 2;
+  HardwareType hardware_type = 3;
+  int32 num_channels = 4;
+  int32 sample_rate = 5;
+  int32 frame_length_ms = 6;
+  double confidence_threshold = 7;
+  string model_version = 8;
+  Location location = 9;
+  string mqtt_topic_prefix = 10;
+  bool ota_enabled = 11;
+}
+
+// Device health report
+message DeviceHealth {
+  string device_id = 1;
+  DeviceStatus status = 2;
+  google.protobuf.Timestamp last_seen = 3;
+  int64 uptime_seconds = 4;
+  double cpu_temp = 5;
+  double gpu_temp = 6;
+  int64 mem_used_mb = 7;
+  int64 mem_total_mb = 8;
+  double inference_latency_ms = 9;
+  double predictions_per_minute = 10;
+  string model_version = 11;
+  string firmware_version = 12;
+}
+
+// Registration request
+message RegisterDeviceRequest {
+  string device_id = 1;
+  string name = 2;
+  HardwareType hardware_type = 3;
+  int32 num_channels = 4;
+  Location location = 5;
+}
+
+// Get device request
+message GetDeviceRequest {
+  string device_id = 1;
+}
+
+// List devices request
+message ListDevicesRequest {
+  DeviceStatus status_filter = 1;
+  int32 limit = 2;
+  int32 offset = 3;
+}
+
+// List devices response
+message ListDevicesResponse {
+  repeated DeviceConfig devices = 1;
+  int64 total_count = 2;
+}
+
+// Update config request
+message UpdateConfigRequest {
+  string device_id = 1;
+  DeviceConfig config = 2;
+}
+
+// Certificate request (mTLS provisioning)
+message CertificateRequest {
+  string device_id = 1;
+  string csr_pem = 2;  // Certificate Signing Request in PEM format
+}
+
+// Certificate response
+message CertificateResponse {
+  string cert_pem = 1;     // Signed client certificate
+  string ca_cert_pem = 2;  // CA certificate for trust chain
+  google.protobuf.Timestamp expires_at = 3;
+}
+
+// Device registry service
+service DeviceRegistryService {
+  rpc RegisterDevice(RegisterDeviceRequest) returns (DeviceConfig);
+  rpc GetDevice(GetDeviceRequest) returns (DeviceConfig);
+  rpc ListDevices(ListDevicesRequest) returns (ListDevicesResponse);
+  rpc UpdateConfig(UpdateConfigRequest) returns (DeviceConfig);
+  rpc DeleteDevice(GetDeviceRequest) returns (google.protobuf.Empty);
+  rpc ReportHealth(DeviceHealth) returns (google.protobuf.Empty);
+  rpc IssueCertificate(CertificateRequest) returns (CertificateResponse);
+}

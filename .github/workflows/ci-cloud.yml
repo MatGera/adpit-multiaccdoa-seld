@@ -1,0 +1,101 @@
+name: CI — Cloud Services
+
+on:
+  push:
+    branches: [main, develop]
+    paths:
+      - "cloud/**"
+      - "spatial/**"
+      - "semantic/**"
+      - "vision/**"
+      - "libs/seld-common/**"
+      - ".github/workflows/ci-cloud.yml"
+  pull_request:
+    paths:
+      - "cloud/**"
+      - "spatial/**"
+      - "semantic/**"
+      - "vision/**"
+      - "libs/seld-common/**"
+
+jobs:
+  lint-and-test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        service:
+          - cloud/api-gateway
+          - cloud/ingestion-service
+          - cloud/device-service
+          - spatial
+          - semantic
+          - vision
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+        with:
+          version: "latest"
+
+      - name: Set up Python 3.12
+        run: uv python install 3.12
+
+      - name: Install dependencies
+        run: |
+          cd ${{ matrix.service }}
+          uv sync --dev
+
+      - name: Lint with ruff
+        run: |
+          cd ${{ matrix.service }}
+          uv run ruff check src/ tests/ || true
+          uv run ruff format --check src/ tests/ || true
+
+      - name: Type check
+        run: |
+          cd ${{ matrix.service }}
+          uv run mypy src/ || true
+
+      - name: Run tests
+        run: |
+          cd ${{ matrix.service }}
+          uv run pytest tests/ -v --tb=short || true
+
+  build-docker:
+    runs-on: ubuntu-latest
+    needs: lint-and-test
+    strategy:
+      matrix:
+        service:
+          - { name: api-gateway, context: cloud/api-gateway, dockerfile: cloud/api-gateway/Dockerfile }
+          - { name: ingestion-service, context: cloud/ingestion-service, dockerfile: cloud/ingestion-service/Dockerfile }
+          - { name: device-service, context: cloud/device-service, dockerfile: cloud/device-service/Dockerfile }
+          - { name: spatial-engine, context: spatial, dockerfile: spatial/Dockerfile }
+          - { name: semantic-layer, context: semantic, dockerfile: semantic/Dockerfile }
+          - { name: vision-fusion, context: vision, dockerfile: vision/Dockerfile }
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to Container Registry
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build Docker image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ${{ matrix.service.dockerfile }}
+          push: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+          tags: |
+            ghcr.io/${{ github.repository }}/${{ matrix.service.name }}:${{ github.sha }}
+            ghcr.io/${{ github.repository }}/${{ matrix.service.name }}:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max

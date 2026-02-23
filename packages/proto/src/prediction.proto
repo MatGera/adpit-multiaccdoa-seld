@@ -1,0 +1,63 @@
+syntax = "proto3";
+
+package seld.prediction;
+
+option python_generic_services = true;
+
+import "google/protobuf/timestamp.proto";
+
+// DOA vector in Cartesian coordinates
+message DOAVector {
+  double x = 1;
+  double y = 2;
+  double z = 3;
+}
+
+// Single prediction item
+message PredictionItem {
+  string class_name = 1;
+  double confidence = 2;
+  DOAVector vector = 3;
+}
+
+// Device telemetry
+message Telemetry {
+  double inference_ms = 1;
+  double cpu_temp = 2;
+  double gpu_temp = 3;
+  int64 mem_used_mb = 4;
+}
+
+// Edge prediction event (mirrors MQTT JSON payload)
+message PredictionEvent {
+  string device_id = 1;
+  google.protobuf.Timestamp timestamp = 2;
+  int64 frame_idx = 3;
+  repeated PredictionItem predictions = 4;
+  Telemetry telemetry = 5;
+}
+
+// Query for historical predictions
+message PredictionQuery {
+  string device_id = 1;          // optional filter
+  string class_name = 2;         // optional filter
+  google.protobuf.Timestamp start_time = 3;
+  google.protobuf.Timestamp end_time = 4;
+  double min_confidence = 5;
+  int32 limit = 6;
+  int32 offset = 7;
+}
+
+// Response with list of predictions
+message PredictionList {
+  repeated PredictionEvent events = 1;
+  int64 total_count = 2;
+}
+
+// Prediction service
+service PredictionService {
+  // Stream live predictions
+  rpc StreamPredictions(PredictionQuery) returns (stream PredictionEvent);
+  // Query historical predictions
+  rpc QueryPredictions(PredictionQuery) returns (PredictionList);
+}
