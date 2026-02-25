@@ -126,11 +126,6 @@ adpit-multiaccdoa-seld/
 │       ├── ci-ml-training.yml       # Training: model smoke tests, ONNX export
 │       └── cd-deploy.yml            # Deploy to staging/production via Helm
 │
-├── .cursor/rules/
-│   ├── python-style.mdc             # Python conventions for Cursor AI
-│   ├── typescript-style.mdc         # TypeScript conventions
-│   └── project-structure.mdc        # Monorepo navigation guide
-│
 ├── packages/                        # Shared TypeScript packages
 │   ├── shared-types/                # Zod schemas + TS types (all services)
 │   │   └── src/
