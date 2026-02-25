@@ -18,6 +18,7 @@ class Settings(BaseSettings):
     # Embedding model
     embedding_model: str = "sentence-transformers/all-MiniLM-L6-v2"
     embedding_dim: int = 384
+    embed_batch_size: int = 64
 
     # LLM
     llm_provider: str = "anthropic"  # anthropic | ollama

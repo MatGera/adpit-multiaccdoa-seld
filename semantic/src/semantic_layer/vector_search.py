@@ -22,6 +22,7 @@ logger = structlog.get_logger(__name__)
 @dataclass
 class SearchResult:
     """A single search result from the vector store."""
+    chunk_id: int
     content: str
     source: str
     page: int | None
@@ -84,11 +85,18 @@ class VectorSearch:
         if asset_filter:
             asset_clause = "AND asset_tags && :asset_tags"
             params["asset_tags"] = asset_filter
-
+'''
+SELECT text of the chunk, the source, the page number, tags and the cosine similarity (from 1=identical to 0=completely different, subtracting 1)
+ between the vector saved in the chunk and the query vector,
+FROM the table document_embeddings
+WHERE the cosine similarity >= the threshold(a defoult value of 0.5) AND even one of the tags of the user query is present in the tags of the chunk
+ORDER BY decrescent cosine similarity 
+LIMIT the maximum number of lines form python
+'''
         async with self._db.session() as session:
             result = await session.execute(
                 text(f"""
-                    SELECT content, source, page_number,
+                    SELECT idcontent, source, page_number,                     
                            1 - (embedding <=> :embedding::vector) AS score,
                            asset_tags
                     FROM document_embeddings
@@ -96,13 +104,14 @@ class VectorSearch:
                     {asset_clause}
                     ORDER BY embedding <=> :embedding::vector
                     LIMIT :limit
-                """),
+                """), 
                 params,
             )
             rows = result.fetchall()
 
         return [
             SearchResult(
+                chunk_id=r.id,
                 content=r.content,
                 source=r.source,
                 page=r.page_number,
@@ -134,12 +143,12 @@ class VectorSearch:
                 text(f"""
                     SELECT content, source, page_number,
                            ts_rank(
-                               to_tsvector('english', content),
+                               content_tsv,
                                plainto_tsquery('english', :query)
                            ) AS score,
                            asset_tags
                     FROM document_embeddings
-                    WHERE to_tsvector('english', content) @@
+                    WHERE content_tsv @@
                           plainto_tsquery('english', :query)
                     {asset_clause}
                     ORDER BY score DESC
@@ -177,7 +186,7 @@ class VectorSearch:
         scores: dict[str, tuple[float, SearchResult]] = {}
 
         for rank, result in enumerate(vector_results):
-            key = f"{result.source}:{result.content[:100]}"
+            key = str(result.chunk_id)
             rrf = w_v / (k + rank + 1)
             if key in scores:
                 scores[key] = (scores[key][0] + rrf, result)
@@ -185,7 +194,7 @@ class VectorSearch:
                 scores[key] = (rrf, result)
 
         for rank, result in enumerate(text_results):
-            key = f"{result.source}:{result.content[:100]}"
+            key = str(result.chunk_id)
             rrf = w_t / (k + rank + 1)
             if key in scores:
                 scores[key] = (scores[key][0] + rrf, scores[key][1])

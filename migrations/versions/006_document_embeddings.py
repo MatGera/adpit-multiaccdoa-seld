@@ -21,11 +21,11 @@ def upgrade() -> None:
         "documents",
         sa.Column("id", sa.String(64), primary_key=True),
         sa.Column("file_name", sa.String(512), nullable=False),
-        sa.Column("file_type", sa.String(16), nullable=False),
+        sa.Column("file_type", sa.String(16), nullable=False),  # 'pdf','docx','txt'
         sa.Column("file_size_bytes", sa.BigInteger, nullable=True),
-        sa.Column("asset_tags", sa.ARRAY(sa.String), nullable=True),
+        sa.Column("asset_tags", sa.ARRAY(sa.String), nullable=True),  # tags linking to BIM assets
         sa.Column("metadata", JSONB, nullable=True),
-        sa.Column("num_chunks", sa.Integer, nullable=True),
+        sa.Column("num_chunks", sa.Integer, nullable=True),  # filled after ingestion
         sa.Column("status", sa.String(32), nullable=False, server_default="processing"),
         sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
     )
@@ -40,9 +40,12 @@ def upgrade() -> None:
             sa.ForeignKey("documents.id", ondelete="CASCADE"),
             nullable=False,
         ),
-        sa.Column("chunk_index", sa.Integer, nullable=False),
-        sa.Column("content", sa.Text, nullable=False),
-        sa.Column("source_page", sa.Integer, nullable=True),
+        sa.Column("chunk_index", sa.Integer, nullable=False),  # position inside the document
+        sa.Column("content", sa.Text, nullable=False), # row text of the chunk
+        sa.Column("source", sa.String(512), nullable=False) # source of the chunk (file name, URL, etc)
+        sa.Column("page", sa.Integer, nullable=True), # PDF page number, None for non-PDF sources
+        sa.Column("content_hash", sa.String(64), nullable=False, unique=True) # SHA-256 for deduplicatin
+        sa.Column("asset_tags", sa.ARRAY(sa.String), nullable=True) # denormalized from documents
         sa.Column("metadata", JSONB, nullable=True),
         # pgvector embedding column (1536 dimensions for text-embedding-3-large)
         # Use raw SQL for vector type
@@ -60,7 +63,17 @@ def upgrade() -> None:
     # Indexes
     op.create_index("idx_chunks_document", "document_chunks", ["document_id"])
 
-    # HNSW index for vector similarity search
+    #B-tree unique index on content_hash for deduplication
+    op.execute(
+        "idx_chunks_content_hash",
+        "document_chunks",
+        ["content_hash"],
+        unique=True
+    )
+
+    # HNSW index for vector similarity search (nearest neighbor search)
+    #m=16: number of connections per node (higher=better recall, more memory)
+    #ef_construction=64: number of elements to consider during construction (higher=better quality, more time)
     op.execute(
         "CREATE INDEX idx_chunks_embedding_hnsw ON document_chunks "
         "USING hnsw (embedding vector_cosine_ops) "
@@ -73,6 +86,12 @@ def upgrade() -> None:
         "USING GIN (content_tsv)"
     )
 
+    # GIN index for asset_tags array filtering
+    op.execute(
+        "CREATE INDEX idx_chunks_asset_tags"
+        "ON document_chunks"
+        "USING GIN (asset_tags)"
+    )
 
 def downgrade() -> None:
     op.drop_table("document_chunks")
